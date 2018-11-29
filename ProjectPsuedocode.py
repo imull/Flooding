@@ -3,54 +3,34 @@ Yay!
 #PART 0: Change Imagery Format [WILL BE DONE MANUALLY]
 #Extract LEDAPS Images from .tar to .tiff. Output will be individual LEDAPS tiff raster files.
 
-#PART 1: Import Imagery
+#PART 1: Import Imagery and flood hazard layer
+# For flood hazard layer- https://msc.fema.gov/portal/advanceSearch#searchresultsanchor
 #Import module & Environment
-Import arcpy
-Import os
-arcpy.env.workspace = r’C:/Data/*name*.gdb’ 
+import arcpy
+import os
+arcpy.env.workspace = r'C:/Data/*name*' 
 
 #PART 1.5 to check-out Spatial Analyst 
 #Check out arcpy spatial extension
-arcpy.CheckOutExtension (“Spatial”)
-
-#PART 2: Align & Clip Imagery
-# Select raster area based upon Wilmington XY coordinate corners  (creating a polygon geometry object) [potentially better to use a Mask function?] 
-# First, create empty point and array objects
-pnt = arcpy.Point()
-ary = arcpy.Array()
-coordList = [ [X1,Y1], [X2,Y2], [X3,Y3], [X4,Y4] ]
+arcpy.CheckOutExtension (“spatial”)
 
 
-# Loop through coordinate list pairs and populate point object
-for coord in cordList:
-pnt.x = coord [0]
-	pnt.y = coord [1]
-	# pass point to array
-	ary.add(pnt)
-polygon = arcpy.Polygon(ary)
+#PART 2: Reproject rasters and shapefiles to a projected coordinate system 
 
-# Confirm that data was added. Print to user the number of points created 
-Print “Point Count: {0}”.format(polygon.pointcount)
+####BELOW OPTIONAL BACK-UP SCRIPT
+#Project a shapefile: 
+# Projected Coordinate System used: NAD_1983_StatePlane_North_Carolina_FIPS_3200 [WKID = 32119]
+#raster_bands = [“dummy”, “2018-09-18, Sentinel-2A L1C, B01.tiff”, “2018-09-18, #Sentinel-2A L1C, B02.tiff”, “2018-09-18, Sentinel-2A L1C, B03.tiff”, “2018-09-18, #Sentinel-2A L1C, B04.tiff”, “2018-09-18, Sentinel-2A L1C, B05.tiff”, “2018-09-18, #Sentinel-2A L1C, B06.tiff”, “2018-09-18, Sentinel-2A L1C, B07.tiff”, “2018-09-18, #Sentinel-2A L1C, B08.tiff”, “2018-09-18, Sentinel-2A L1C, B09.tiff”, “2018-09-18, #Sentinel-2A L1C, B10.tiff”, “2018-09-18, Sentinel-2A L1C, B11.tiff”, “2018-09-18, #Sentinel-2A L1C, B12.tiff”]
+#for bands in raster_bands:
+#ProjectRaster_management (in_dataset = *original_raster*.tif, 
+# out_dataset = *project_raster*.tif, 
+ # should this below be in single or double quotes?
+ #out_coor_system = ‘32119’, 
+# below is optional code
+#{resampling_type}, {cell_size}, {geographic_transform}, #{Registration_Point}, {in_coor_system}, {vertical})
+#####ABOVE OPTIONAL BACK-UP SCRIPT
 
-# Use selection to clip Landsat imagery [Could possible use this code acquired from here and skip the above step to clip rasters to the Wilmington shapefile]. Once raster and shapefile are added to the file: 
-Extents = arcpy.sa.Raster(MyRaster).extent`
-
-# Use these lines to make a polygon out of these extents:
-pnt_array = arcpy.Array()
-pnt_array.add(Extents.lowerLeft)
-pnt_array.add(Extents.lowerRight)
-pnt_array.add(Extents.upperRight)
-pnt_array.add(Extents.upperLeft)
-poly = arcpy.Polygon(pnt_array)
-
-# Clip my shapefile using this code. Outputs are raster which fit Wilmington’s boundary 
-arcpy.Clip_analysis(shp, poly, Shp_clip)
-
-#PART 2.5: Reproject rasters and shapefile to a projected coordinate system 
-#Project a shapefile: Project_management (in_dataset, out_dataset, out_coor_system, transform_method, {in_coor_system}, {preserve_shape}, {max_deviation}, {vertical})
-# Projected Coordinate System used: NAD_1983_StatePlane_North_Caroli
-na_FIPS_3200 [WKID = 32119]
-# set up paths to input and output directories
+# set up paths to input and output directories - this should itreate through file in a folder.
 input_location = os.path.join(arcpy.env.workspace,'[OUR RASTER FILES LOCATION]')
 output_location = os.path.join(arcpy.env.workspace,'ReProjected')
 input_location_shapefile = os.path.join(arcpy.env.workspace,'[OUR Shapefile LOCATION]')
@@ -59,7 +39,7 @@ output_location_shapefile = os.path.join(arcpy.env.workspace,'ReProjected')
 # get list of all input tifs
 arcpy.env.workspace = input_location
 # Get and print a list of GRIDs from the workspace
-rasters = arcpy.ListRasters("*", "TIF")   # this only works in the current workspace (ANNOYING)
+rastersList = arcpy.ListRasters("*", "TIF”)   # this only works in the current workspace (ANNOYING)
 shapefiles = arcpy.ListFeatureClasses (“*”, “SHP”)
 
 # iterate through all rasters and shapefile polygons in input directory, project, and write to output directory
@@ -69,16 +49,65 @@ for raster in rasters:
             	out_raster=os.path.join(output_location, raster), out_coor_system= “32119”)
 
 for polygon in shapefiles:
-	arcpy.Project_managment (in_dataset = input_location_shapefile = 				os.path.join(input_location_shapefile, polygon), out_dataset = os.path.join				(output_location_shapefile, polygon), out_coor_system = “32119”, transform method =		 ???)
+	arcpy.Project_managment (in_dataset = input_location_shapefile = 				os.path.join(input_location_shapefile, polygon), out_dataset = os.path.join				(output_location_shapefile, polygon), out_coor_system = “32119”) 
+#transform method = ____) left this optional parameter blank, however we may run into an error if the datum of our shapefile and rasters are different. We would use this parameter to specify how the datums should be transformed. 
 
+#PART 2.5: Align & Clip Imagery
+# Select raster area based upon Wilmington XY coordinate corners  (creating a polygon geometry object) [potentially better to use a Mask function?] 
+# First, create empty point and array objects
+pnt = arcpy.Point()
+ary = arcpy.Array()
+#based upon area of imagery  [RYAN]
+coordList = [ [X1,Y1], [X2,Y2], [X3,Y3], [X4,Y4] ]
+
+# Loop through coordinate list pairs and populate point object. Also, will create a polygon array to call later in order to use in the Clip_analysis tool (clip raster to study area).
+
+#a list that will hold each of the polygon objects and coordinates which can be called later
+cordList = []
+
+# create a polygon array in order to create an output file we can call later
+for coord in cordList:
+pnt.x = coord [0]
+	pnt.y = coord [1]
+	# pass point to array
+	ary.add(pnt)
+#creates a copy of the polyline objects using CopyFeatures 
+cordList_polygon = arcpy.CopyFeature_management(in_features = cordList, out_feature_class = r’C:/Data/*name*.shp’)
+
+
+# Confirm that data was added. Print to user the number of points created 
+# [Old code: we are keeping this in case the below line of code is incorrect] ]print “Point Count: {0}”.format(polygon.pointcount)
+
+print “Saved coordinate points: “ + cordList
+
+# [OPTIONAL code block: we should use the Clip_analysis tool instead]Use selection to clip Landsat imagery [Could possible use this code acquired from here and skip the above step to clip rasters to the Wilmington shapefile]. Once raster and shapefile are added to the file: 
+# Extent tool Syntax: Extent  ({XMin}, {YMin}, {XMax}, {YMax}, {ZMin}, {ZMax}, {MMin}, {MMax})
+Extents = arcpy.sa.Raster(MyRaster).extent`
+# [OPTIONAL]  Use these lines to make a polygon out of these extents:
+pnt_array = arcpy.Array()
+pnt_array.add(Extents.lowerLeft)
+pnt_array.add(Extents.lowerRight)
+pnt_array.add(Extents.upperRight)
+pnt_array.add(Extents.upperLeft)
+poly = arcpy.Polygon(pnt_array)
+
+# Clip my shapefile using this code. Outputs are raster which fit Wilmington’s boundary -- Also repeat for FEMA map layer. Need the flood map to be limited to area of interest.  
+arcpy.Clip_analysis(shp, poly, Shp_clip)
+
+arcpy.Clip_management (in_raster = name , 
+ rectangle = cordList, 
+ out_raster = C:/Data/*name*.tif, 
+  In_template_dataset = cordList_polygon ,
+  clipping_geometry) 
 
 #PART 3: Iterate & Classify
 #Begin iteration for tiff files
-for raster in RasterList:
+raster_bands = [“dummy”, “2018-09-18, Sentinel-2A L1C, B01.tiff”, “2018-09-18, Sentinel-2A L1C, B02.tiff”, “2018-09-18, Sentinel-2A L1C, B03.tiff”, “2018-09-18, Sentinel-2A L1C, B04.tiff”, “2018-09-18, Sentinel-2A L1C, B05.tiff”, “2018-09-18, Sentinel-2A L1C, B06.tiff”, “2018-09-18, Sentinel-2A L1C, B07.tiff”, “2018-09-18, Sentinel-2A L1C, B08.tiff”, “2018-09-18, Sentinel-2A L1C, B09.tiff”, “2018-09-18, Sentinel-2A L1C, B10.tiff”, “2018-09-18, Sentinel-2A L1C, B11.tiff”, “2018-09-18, Sentinel-2A L1C, B12.tiff”]
 
 #Supervised classification
-#Calculate new raster values using NWDI (Normalized Difference Water Index). Output is a raster file with NWDI values for each cell.
+#Calculate new raster values using NWDI (Normalized Difference Water Index). Output is a raster file with NWDI values for each cell. 
 #     (McFeeters, 1996) This formula is for detecting water bodies.
+# Stack Exchange link- https://gis.stackexchange.com/questions/150067/access-individual-bands-and-use-them-in-map-algebra
 #ArcHelp link: http://desktop.arcgis.com/en/arcmap/10.3/tools/3d-analyst-toolbox/an-overview-of-the-raster-math-toolset.htm
 
 arcpy.rastermath([inrastergreen, inrasterNIR], ‘((a - b)/(a + b))’, outrasNDWI_#])
@@ -113,7 +142,10 @@ Erase_analysis (in_features, erase_features, out_feature_class, {cluster_toleran
 
 #Repeat Erase with FEMA Flood Map data to get full extent of flooding beyond FEMA flood maps. This will create a polygon of flooding beyond the FEMA lines.
 
+# Use Identity tool to identify the flood hazard layer that 
+
 #PART 5: Export Map (highlighting areas beyond FEMA boundaries which were flooded)
 #ArcHelp link: http://desktop.arcgis.com/en/arcmap/10.3/analyze/arcpy-mapping/exporttopdf.html
 
 ExportToPDF Syntax: (map_document, out_pdf, {data_frame}, {df_export_width}, {df_export_height}, {resolution}, {image_quality}, {colorspace}, {compress_vectors}, {image_compression}, {picture_symbol}, {convert_markers}, {embed_fonts}, {layers_attributes}, {georef_info}, {jpeg_compression_quality})
+
